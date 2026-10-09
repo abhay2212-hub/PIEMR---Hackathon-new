@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traffic Authority Login</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .page { width: min(420px, 100%); margin: 0 auto; padding: 56px 18px; }
+  .panel { padding: 24px; background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius-lg); }
+  h1 { color: var(--sign-dark); font: 600 26px/1.2 var(--figure); }
+  .intro { margin: 7px 0 22px; color: var(--ink-2); }
+  form { display: grid; gap: 14px; }
+  label { display: grid; gap: 5px; color: var(--ink-2); }
+  input { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--panel); }
+  .actions { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+  .error { min-height: 20px; margin: 0; color: var(--jam); }
+  @media (max-width: 420px) { .page { padding: 32px 16px; } .panel { padding: 20px; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <section class="panel">
+    <h1>Traffic Authority</h1>
+    <p class="intro">Sign in to open the control room.</p>
+    <form id="loginForm">
+      <label for="user">User ID<input id="user" name="user" autocomplete="username" required></label>
+      <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+      <p class="error" id="error" role="alert" aria-live="polite"></p>
+      <div class="actions"><button class="btn primary" type="submit">Login</button><a href="/">Back</a></div>
+    </form>
+  </section>
+</main>
+<script>
+document.getElementById("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const error = document.getElementById("error");
+  error.textContent = "";
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user: form.user.value, password: form.password.value })
+    });
+    if (!response.ok) {
+      error.textContent = response.status === 401 ? "Invalid user ID or password" :
+        response.status === 429 ? "Too many attempts. Try again in 5 minutes." : "Unable to sign in. Please try again.";
+      return;
+    }
+    location.assign("/control");
+  } catch {
+    error.textContent = "Unable to sign in. Please try again.";
+  }
+});
+</script>
+</body>
+</html>

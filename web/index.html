@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intelligent Traffic Congestion Response System</title>
+<meta name="description" content="Detects, predicts and responds to traffic congestion in real time.">
+<style>
+  :root {
+    --navy: #06121f; --navy-2: #0b1d30; --blue: #1a73e8; --blue-2: #4c9bff;
+    --green: #2ecc71; --amber: #f5b301; --red: #ff5a52;
+    --ink: #ffffff; --ink-2: #c4d2e0; --ink-3: #8ea3b8;
+    --glass: rgba(10, 26, 44, .58); --line: rgba(255, 255, 255, .14);
+    --font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: var(--navy); color: var(--ink); font-family: var(--font); }
+  a { color: inherit; text-decoration: none; }
+
+  /* ---------- background photo, very dim ---------- */
+  .hero { position: relative; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden; isolation: isolate; }
+  .hero::before {                                   /* the photo */
+    content: ""; position: absolute; inset: -3%; z-index: -2;
+    background: url("/media/hero-bg.jpg") center 40% / cover no-repeat, var(--navy-2);
+    filter: brightness(.42) saturate(.75) blur(1.5px);
+    animation: drift 30s ease-in-out infinite alternate;
+  }
+  .hero::after {                                    /* dark blue tint so text is always readable */
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background:
+      radial-gradient(ellipse at 20% 35%, rgba(26,115,232,.18), transparent 55%),
+      linear-gradient(90deg, rgba(6,18,31,.94) 0%, rgba(6,18,31,.78) 45%, rgba(6,18,31,.55) 100%),
+      linear-gradient(180deg, rgba(6,18,31,.35) 0%, rgba(6,18,31,0) 30%, rgba(6,18,31,.9) 100%);
+  }
+  @keyframes drift { from { transform: scale(1); } to { transform: scale(1.08) translate(-1%, -1%); } }
+  @media (prefers-reduced-motion: reduce) { .hero::before { animation: none; } .dot { animation: none !important; } }
+
+  /* ---------- top bar ---------- */
+  .nav { display: flex; align-items: center; gap: 14px; padding: 20px clamp(16px, 5vw, 64px); }
+  .logo { width: 38px; height: 38px; border: 2px solid #fff; border-radius: 9px; display: grid; place-items: center; flex: none; }
+  .logo svg { width: 22px; height: 22px; }
+  .nav .name { font-weight: 600; font-size: 15px; line-height: 1.2; }
+  .nav .name small { display: block; color: var(--ink-3); font-weight: 400; font-size: 12px; }
+  .nav .links { margin-left: auto; display: flex; gap: 6px; }
+  .nav .links a { padding: 8px 14px; border-radius: 8px; font-size: 14px; color: var(--ink-2); }
+  .nav .links a:hover { background: rgba(255,255,255,.08); color: #fff; }
+
+  /* ---------- hero content ---------- */
+  .wrap { flex: 1; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px);
+          align-items: center; padding: 24px clamp(16px, 5vw, 64px) 40px; max-width: 1400px; width: 100%; margin: 0 auto; }
+  .status { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line);
+            border-radius: 99px; background: rgba(255,255,255,.05); font-size: 13px; color: var(--ink-2); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
+  .status.on .dot { background: var(--green); box-shadow: 0 0 0 4px rgba(46,204,113,.2); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  h1 { margin: 18px 0 16px; font-size: clamp(32px, 4.6vw, 58px); line-height: 1.08; font-weight: 700; letter-spacing: -.5px;
+       text-shadow: 0 2px 18px rgba(0,0,0,.45); }
+  h1 em { font-style: normal; background: linear-gradient(90deg, #7fb6ff, #4c9bff 40%, #2ecc71); -webkit-background-clip: text;
+          background-clip: text; color: transparent; }
+  .lead { font-size: clamp(16px, 1.4vw, 19px); line-height: 1.6; color: var(--ink-2); max-width: 600px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; height: 50px; padding: 0 22px; border-radius: 10px;
+         font-size: 15.5px; font-weight: 600; transition: transform .15s, background .15s, box-shadow .15s; }
+  .btn svg { width: 18px; height: 18px; }
+  .btn.primary { background: var(--blue); color: #fff; box-shadow: 0 8px 24px rgba(26,115,232,.35); }
+  .btn.primary:hover { background: #2a82f5; transform: translateY(-1px); }
+  .btn.ghost { border: 1.5px solid rgba(255,255,255,.55); color: #fff; background: rgba(255,255,255,.04); }
+  .btn.ghost:hover { background: rgba(255,255,255,.12); transform: translateY(-1px); }
+  .btn:focus-visible, .card:focus-visible { outline: 3px solid var(--blue-2); outline-offset: 3px; }
+
+  /* ---------- two entry cards ---------- */
+  .cards { display: grid; gap: 16px; }
+  .card { display: grid; grid-template-columns: 52px 1fr 24px; gap: 16px; align-items: center; padding: 22px;
+          border: 1px solid var(--line); border-radius: 16px; background: var(--glass);
+          backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: transform .18s, border-color .18s, background .18s; }
+  .card:hover { transform: translateY(-3px); border-color: rgba(127,182,255,.55); background: rgba(14, 34, 58, .72); }
+  .ic { width: 52px; height: 52px; border-radius: 13px; display: grid; place-items: center; }
+  .ic svg { width: 26px; height: 26px; }
+  .card.auth .ic { background: rgba(26,115,232,.22); color: #7fb6ff; }
+  .card.pub .ic { background: rgba(46,204,113,.18); color: #6fe3a2; }
+  .card h2 { font-size: 19px; font-weight: 650; margin-bottom: 4px; }
+  .card p { font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+  .card ul { list-style: none; padding: 0; margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .card li { font-size: 12px; color: var(--ink-2); padding: 3px 9px; border-radius: 99px; background: rgba(255,255,255,.07); }
+  .card .go { color: var(--ink-3); transition: transform .18s, color .18s; }
+  .card:hover .go { transform: translateX(4px); color: #fff; }
+  .card .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase;
+               color: var(--ink-3); margin-bottom: 4px; }
+
+  /* ---------- feature strip ---------- */
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line);
+           background: rgba(6,18,31,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .feat { padding: 20px clamp(16px, 2.4vw, 32px); border-left: 1px solid var(--line); display: flex; gap: 12px; align-items: flex-start; }
+  .feat:first-child { border-left: 0; }
+  .feat svg { width: 22px; height: 22px; flex: none; color: var(--blue-2); margin-top: 2px; }
+  .feat b { display: block; font-size: 14.5px; margin-bottom: 3px; }
+  .feat span { font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+
+  footer { text-align: center; padding: 16px; font-size: 12.5px; color: var(--ink-3); background: var(--navy); }
+
+  /* ---------- tablets and phones ---------- */
+  @media (max-width: 980px) {
+    .wrap { grid-template-columns: 1fr; padding-top: 8px; }
+    .strip { grid-template-columns: repeat(2, 1fr); }
+    .feat:nth-child(3) { border-left: 0; }
+    .feat:nth-child(n+3) { border-top: 1px solid var(--line); }
+  }
+  @media (max-width: 560px) {
+    .nav .links { display: none; }
+    .btn { flex: 1 1 100%; justify-content: center; }
+    .card { grid-template-columns: 44px 1fr; padding: 18px; }
+    .card .go { display: none; }
+    .ic { width: 44px; height: 44px; }
+    .strip { grid-template-columns: 1fr; }
+    .feat { border-left: 0; border-top: 1px solid var(--line); }
+    .feat:first-child { border-top: 0; }
+  }
+</style>
+</head>
+<body>
+<section class="hero">
+  <header class="nav">
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v20M4 8h16M4 16h16"/></svg></div>
+    <div class="name">Intelligent Traffic System<small>Smart City · Traffic Management</small></div>
+    <nav class="links" aria-label="Main">
+      <a href="/public">Live traffic</a>
+      <a href="/login">Authority login</a>
+    </nav>
+  </header>
+
+  <div class="wrap">
+    <div>
+      <span class="status" id="status"><i class="dot"></i><span id="statusTxt">Checking the system…</span></span>
+      <h1>Intelligent Traffic <em>Congestion Response</em> System</h1>
+      <p class="lead">Detects congestion with AI cameras, predicts school and office rush hours from 14-day history,
+        and responds with adaptive signals, early diversions and public advisories - in real time.</p>
+      <div class="cta">
+        <a class="btn primary" href="/login">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          Traffic Authority Login</a>
+        <a class="btn ghost" href="/public">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M12 3l9 9-9 9"/></svg>
+          View Live Traffic</a>
+      </div>
+    </div>
+
+    <div class="cards">
+      <a class="card auth" href="/login">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+        <span><span class="tag">Login required</span><h2>Traffic Authority</h2>
+          <p>Control room for signals, diversions and predictions.</p>
+          <ul><li>Live AI camera</li><li>Signal control</li><li>Publish advisories</li></ul></span>
+        <svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+      <a class="card pub" href="/public">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+        <span><span class="tag">Open to everyone</span><h2>Public / Commuters</h2>
+          <p>Live traffic, advisories and the least congested route.</p>
+          <ul><li>Road closures</li><li>Best route</li><li>Busy times</li></ul></span>
+        <svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <div class="strip">
+    <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      <div><b>AI camera detection</b><span>YOLO counts cars, bikes, buses and trucks live.</span></div></div>
+    <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="20" rx="3"/><circle cx="12" cy="7" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="17" r="1.5"/></svg>
+      <div><b>Adaptive signals</b><span>Green time follows the real queue at every junction.</span></div></div>
+    <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+      <div><b>Predictive diversion</b><span>School and office rush predicted, traffic diverted early.</span></div></div>
+    <div class="feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-7v16L3 13z"/><path d="M7 12v5a2 2 0 0 0 4 0v-3"/></svg>
+      <div><b>Public advisories</b><span>VIP movement, construction and road damage alerts.</span></div></div>
+  </div>
+</section>
+<footer>Intelligent Traffic Congestion Response System · Hackathon project · AIT Pune</footer>
+
+<script>
+// Small live status chip: green when the simulation is running.
+(async function status() {
+  const el = document.getElementById("status"), txt = document.getElementById("statusTxt");
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    const s = await r.json();
+    const live = !!s.smart_live;
+    el.classList.toggle("on", live);
+    txt.textContent = live ? `System live · ${s.smart && s.smart.clock ? "city time " + s.smart.clock : "monitoring"}` : "System ready · simulation not running";
+  } catch (e) { el.classList.remove("on"); txt.textContent = "System ready"; }
+  setTimeout(status, 5000);
+})();
+</script>
+</body>
+</html>

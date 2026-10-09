@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corridor Traffic Control</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  .top { background: var(--sign); color: #fff; }
+  .top .in { display: flex; align-items: center; gap: 18px; padding: 12px 24px; }
+  .mark { width: 38px; height: 38px; border: 2.5px solid #fff; border-radius: 7px; display: grid; place-items: center; }
+  .mark svg { width: 24px; height: 24px; }
+  .brand h1 { font: 600 20px/1.1 var(--figure); letter-spacing: .2px; }
+  .brand p { margin: 2px 0 0; font-size: 12.5px; color: #c9dcee; }
+  .auth { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .auth .btn { height: 30px; color: var(--ink); }
+  .clock { margin-left: auto; text-align: right; }
+  .clock .t { font: 600 30px/1 var(--figure); font-variant-numeric: tabular-nums; }
+  .clock .d { font-size: 12.5px; color: #c9dcee; }
+  .live { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; padding: 5px 10px; border-radius: 99px; background: rgba(255,255,255,.12); }
+  .live i { width: 8px; height: 8px; border-radius: 50%; background: #9fb3c4; }
+  .live.on i { background: #3ddc6a; box-shadow: 0 0 0 3px rgba(61,220,106,.25); }
+
+  .demo { background: var(--panel); border-bottom: 1px solid var(--rule); }
+  .demo .in { display: flex; align-items: center; gap: 10px; padding: 10px 24px; flex-wrap: wrap; }
+  .stage { flex: 1 1 380px; min-width: 0; display: flex; gap: 10px; align-items: center; }
+  .stage .state { font: 600 13px/1 var(--figure); padding: 6px 9px; border-radius: 5px; background: var(--rule-soft); color: var(--ink-2); white-space: nowrap; }
+  .stage .state.paused { background: #fff3d6; color: #7a5200; }
+  .stage .txt { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stage .txt b { color: var(--ink); font-weight: 600; }
+  .speed { font-size: 12.5px; color: var(--ink-3); margin-left: 4px; }
+
+  main { padding: 18px 24px 32px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; max-width: 1800px; margin: 0 auto; }
+  .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius-lg); min-width: 0; }
+  .panel > header { display: flex; align-items: baseline; gap: 10px; padding: 14px 16px 10px; }
+  .panel > header .sub { color: var(--ink-3); font-size: 12.5px; }
+  .panel > header .right { margin-left: auto; }
+  .body { padding: 0 16px 16px; }
+
+  .cameraP { grid-column: 1 / -1; }
+  .camera-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+  .camera-left { min-width: 0; }
+  .camera-side { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .camera-side h3 { font: 600 12.5px var(--text); color: var(--ink-2); margin: 0; text-transform: uppercase; letter-spacing: .4px; }
+  .camera-frame { position: relative; width: min(100%, calc(52vh * 16 / 9)); aspect-ratio: 16 / 9; margin: 0 auto; overflow: hidden;
+                  border-radius: var(--radius-lg); background: #101820; color: #fff; }
+  .camera-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .camera-frame img[hidden] { display: none; }
+  .camera-placeholder { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center;
+                        color: #d4dde3; background: #101820; }
+  .camera-placeholder[hidden] { display: none; }
+  .camera-overlay { position: absolute; inset: 12px 14px auto; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+  .camera-badge { padding: 5px 9px; border-radius: 999px; background: rgba(12,20,26,.82); font-size: 12px; }
+  .camera-live { color: #fff; }
+  .camera-live i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: #e33;
+                   animation: camera-pulse 1.3s infinite; }
+  .camera-live.offline i { background: #8b959c; animation: none; }
+  @keyframes camera-pulse { 50% { opacity: .35; } }
+  .camera-road { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .camera-fps { margin-left: auto; }
+  .camera-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin: 10px 0 0; }
+  .camera-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .camera-tile { min-width: 0; border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 8px 10px; }
+  .camera-tile b { display: block; color: var(--ink-2); font-size: 11px; }
+  .camera-tile strong { display: block; font: 600 23px/1.2 var(--figure); }
+  .camera-tile small { color: var(--ink-3); font-size: 11px; }
+  .camera-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .camera-tile strong.flash { color: var(--sign); }
+  @media (max-width: 1000px) { .camera-layout { grid-template-columns: 1fr; } .camera-frame { width: 100%; } }
+  .camera-alert { color: #176b38; }
+  .camera-alert.alert { color: #a31818; background: #fff0f0; }
+  @media (max-width: 640px) { .camera-counts, .camera-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  .kpis { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, 1fr); }
+  .kpi { padding: 14px 18px 14px; border-left: 1px solid var(--rule); }
+  .kpi:first-child { border-left: 0; }
+  .kpi .l { color: var(--ink-2); font-size: 13px; }
+  .kpi .v { font: 600 34px/1.15 var(--figure); font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .kpi .v small { font-size: 16px; font-weight: 500; color: var(--ink-2); margin-left: 3px; }
+  .kpi .c { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; display: flex; align-items: center; gap: 6px; min-height: 18px; }
+  .kpi .c i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+
+  .mapP { grid-column: span 8; display: flex; flex-direction: column; }
+  .map { height: 560px; padding: 0 8px 8px; }
+  @media (max-width: 640px) { .map { height: 380px; } }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--radius-sm); overflow: hidden; }
+  .seg button { border: 0; background: var(--panel); padding: 6px 12px; cursor: pointer; font-size: 13px; color: var(--ink-2); }
+  .seg button[aria-pressed="true"] { background: var(--sign); color: #fff; }
+  .mapfoot { display: flex; gap: 18px; flex-wrap: wrap; padding: 0 16px 14px; font-size: 12.5px; color: var(--ink-2); align-items: center; }
+
+  .side { grid-column: span 4; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .recs { display: flex; flex-direction: column; gap: 10px; }
+  .rec { border: 1px solid var(--rule); border-left: 4px solid var(--c, var(--ink-3)); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .rec.pending { --c: var(--slow); background: #fffaf0; }
+  .rec.applied { --c: var(--ours); }
+  .rec.rejected { --c: var(--ink-3); opacity: .75; }
+  .rec .h { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; color: var(--ink-3); }
+  .rec .h b { color: var(--ink); font-size: 14px; }
+  .rec .route { margin: 4px 0 0; }
+  .rec .route .num { font-size: 15px; }
+  .rec .acts { display: flex; gap: 8px; margin-top: 8px; }
+  .status { margin-left: auto; font-size: 12.5px; color: var(--ink-2); }
+  .empty { color: var(--ink-3); padding: 6px 0 4px; }
+
+  .log { max-height: 330px; overflow: auto; margin: 0; padding: 0; list-style: none; }
+  .log li { display: grid; grid-template-columns: 46px 92px 1fr; gap: 8px; padding: 7px 0; border-top: 1px solid var(--rule-soft); font-size: 13px; }
+  .log li:first-child { border-top: 0; }
+  .log .tm { color: var(--ink-3); font-family: var(--figure); }
+  .log .k { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 12.5px; }
+  .log .k::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--c, var(--ink-3)); flex: none; }
+
+  .chartP { grid-column: span 7; }
+  .sigP { grid-column: span 5; }
+  .fcP { grid-column: span 7; }
+  .ctlP { grid-column: span 5; }
+  .chart { padding: 0 8px 12px 4px; }
+
+  .sigs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .sig { border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .sig .h { display: flex; align-items: baseline; justify-content: space-between; }
+  .sig .h b { font: 600 16px var(--figure); }
+  .sig .h span { font-size: 12.5px; color: var(--ink-3); }
+  .q { display: grid; grid-template-columns: 52px 1fr 26px; gap: 8px; align-items: center; font-size: 12.5px; margin-top: 6px; }
+  .q .bar { height: 8px; background: var(--rule-soft); border-radius: 4px; overflow: hidden; }
+  .q .bar i { display: block; height: 100%; background: var(--ink-3); border-radius: 4px; }
+  .q.green .bar i { background: var(--free); }
+  .q .n { text-align: right; font-family: var(--figure); }
+  .q .r { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; }
+  .q.green .r { color: var(--ink); font-weight: 600; }
+
+  .ctl { display: grid; gap: 16px; }
+  .ctl h3 { font: 600 13.5px var(--text); margin-bottom: 8px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .zone { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--rule-soft); }
+  .zone:first-of-type { border-top: 0; }
+  .zone img { width: 24px; height: 24px; }
+  .zone .s { font-size: 12.5px; color: var(--ink-3); }
+  .help { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }
+
+  .wait { grid-column: 1 / -1; padding: 60px 24px; text-align: center; }
+  .wait h2 { font: 600 22px var(--figure); margin-bottom: 8px; }
+  .wait code { background: var(--rule-soft); padding: 3px 8px; border-radius: 4px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60; }
+
+  @media (max-width: 1200px) {
+    .mapP, .side, .chartP, .sigP, .fcP, .ctlP { grid-column: 1 / -1; }
+    .kpis { grid-template-columns: repeat(3, 1fr); }
+    .kpi:nth-child(4) { border-left: 0; }
+  }
+  @media (max-width: 640px) {
+    main { padding: 12px 16px; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .top .in, .demo .in { padding-left: 16px; padding-right: 16px; }
+    .top .in { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 10px; }
+    .mark { grid-column: 1; grid-row: 1; }
+    .brand { grid-column: 2; grid-row: 1; min-width: 0; }
+    .auth { grid-column: 1 / 3; grid-row: 2; }
+    .clock { grid-column: 3; grid-row: 1; margin-left: 0; }
+    .live { grid-column: 3; grid-row: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="top"><div class="in">
+  <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v20M4 8h16M4 16h16"/></svg></div>
+  <div class="brand"><h1>Corridor Traffic Control</h1><p>Adaptive signals, diversions and advisories for the simulated city network</p></div>
+  <div class="auth" id="authControls" hidden><span id="authUser"></span><button class="btn" id="logout">Logout</button></div>
+  <div class="clock"><div class="t num" id="clk">--:--</div><div class="d" id="day">Waiting for the simulation</div></div>
+  <span class="live" id="live"><i></i><span>Offline</span></span>
+</div></div>
+
+<div class="demo"><div class="in">
+  <div class="stage"><span class="state" id="runstate">Stopped</span><span class="txt" id="stagetxt">Stages appear here as the system acts.</span></div>
+  <button class="btn primary" id="bPause">Pause</button>
+  <button class="btn" id="bNext" title="Run fast to the next stage, then pause there">Next stage</button>
+  <select id="jumpSel" aria-label="Jump to a time"></select>
+  <button class="btn" id="bJump">Jump</button>
+  <button class="btn quiet" id="bSlow" title="Slower">Slower</button>
+  <button class="btn quiet" id="bFast" title="Faster">Faster</button>
+  <button class="btn quiet" id="bWhole" title="Zoom the SUMO windows out to the whole map">Whole map</button>
+  <span class="speed num" id="speed"></span>
+</div></div>
+
+<main id="main">
+  <section class="panel cameraP" id="liveCameraPanel">
+    <header><h2>Live camera - AI detection</h2><span class="sub">Authority view</span></header>
+    <div class="body camera-layout">
+      <div class="camera-left">
+      <div class="camera-frame" id="camFrame">
+        <img id="camImg" alt="Live camera with AI detection overlays" hidden>
+        <div class="camera-placeholder" id="camPlaceholder"><div><b id="camWhy">Camera offline</b><br>Start it with: <code>python main_linked.py --source usb</code></div></div>
+        <div class="camera-overlay">
+          <span class="camera-badge camera-live offline" id="camLive"><i></i><span>OFFLINE</span></span>
+          <span class="camera-badge camera-road" id="camRoad">Road: —</span>
+          <span class="camera-badge camera-fps" id="camFps">— fps</span>
+        </div>
+      </div>
+      <div class="camera-actions">
+        <button class="btn" id="camFullscreen" type="button">Fullscreen</button>
+        <button class="btn" id="camSnapshot" type="button">Snapshot</button>
+        <button class="btn" id="camPause" type="button">Pause view</button>
+      </div>
+      </div>
+      <div class="camera-side">
+        <h3>Vehicles - in view now / counted</h3>
+        <div class="camera-counts" id="camCounts"></div>
+        <h3>Status</h3>
+        <div class="camera-metrics" id="camMetrics"></div>
+      </div>
+    </div>
+  </section>
+  <section class="panel wait" id="waitBox">
+    <h2>Waiting for the simulation</h2>
+    <p>Start it in another terminal with <code>python both.py --predict</code>. This page connects by itself.</p>
+  </section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const KIND_COLOR = { JAM: "var(--jam)", CONGESTION: "var(--busy)", RECOMMEND: "var(--sign)", DIVERT: "var(--ours)",
+  PRIORITY: "var(--slow)", ADVISORY: "var(--slow)", PREDICTED: "var(--s3)", OPERATOR: "var(--ink)", CAMERA: "var(--ink-3)", "PRE-DIVERT": "var(--ours)" };
+const KIND_WORD = { JAM: "Jam", CONGESTION: "Congestion", RECOMMEND: "Recommend", DIVERT: "Diversion", PRIORITY: "Priority",
+  ADVISORY: "Advisory", PREDICTED: "Prediction", OPERATOR: "Operator", CAMERA: "Camera", "PRE-DIVERT": "Predicted diversion" };
+const DAYS = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
+const JUMPS = [["School morning rush", "07:28"], ["Office morning rush", "08:58"], ["School dispersal", "13:28"], ["Office evening rush", "17:58"]];
+let NET, MAP, ST, FC, view = "smart", built = false, forecastLoaded = 0;
+
+const $ = id => document.getElementById(id);
+let cameraPaused = false, cameraStreamStarted = false, cameraRetryAt = 0, cameraImageError = false;
+
+function cameraOffline() {
+  $("camImg").hidden = true;
+  $("camPlaceholder").hidden = false;
+  $("camLive").classList.add("offline");
+  $("camLive").lastElementChild.textContent = "OFFLINE";
+  cameraStreamStarted = false;
+}
+function startCameraStream() {
+  if (cameraPaused) return;
+  $("camImg").hidden = false;
+  $("camImg").src = api("/api/camera/stream") + "?t=" + Date.now();
+  cameraStreamStarted = true;
+  cameraImageError = false;
+  cameraRetryAt = Date.now() + 3000;
+}
+function initLiveCamera() {
+  const names = { car: "Cars", bike: "Bikes", auto: "Autos", bus: "Buses", truck: "Trucks" };
+  $("camCounts").innerHTML = Object.entries(names).map(([key, name]) =>
+    `<div class="camera-tile"><b>${name}</b><strong id="cam-${key}">0</strong><small>Counted: <span id="cam-${key}-total">0</span></small></div>`).join("");
+  $("camMetrics").innerHTML = `<div class="camera-tile"><b>Waiting</b><strong id="camWaiting">—</strong></div>
+    <div class="camera-tile camera-alert" id="camAlert"><b>Traffic status</b><strong id="camAlertText">Normal</strong></div>
+    <div class="camera-tile"><b>Inference</b><strong id="camLatency">— ms</strong></div>
+    <div class="camera-tile"><b>Last sent to SUMO</b><strong id="camLastSent">—</strong></div>`;
+  $("camImg").onerror = () => { cameraImageError = true; cameraOffline(); cameraRetryAt = Date.now() + 3000; };
+  $("camFullscreen").onclick = () => $("camFrame").requestFullscreen?.();
+  $("camPause").onclick = () => {
+    cameraPaused = !cameraPaused;
+    $("camPause").textContent = cameraPaused ? "Resume view" : "Pause view";
+    if (cameraPaused) {
+      $("camImg").removeAttribute("src");
+      cameraStreamStarted = false;
+    } else {
+      startCameraStream();
+    }
+  };
+  $("camSnapshot").onclick = async () => {
+    try {
+      const response = await fetch(api("/api/camera/snapshot.jpg"), { cache: "no-store" });
+      if (!response.ok) throw new Error("No camera snapshot is available");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `camera_${Date.now()}.jpg`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) { toast(error.message); }
+  };
+  pollCameraStats();
+  setInterval(pollCameraStats, 500);              // tiles follow the video closely
+}
+async function pollCameraStats() {
+  try {
+    const res = await fetch(api("/api/camera/stats"), { cache: "no-store", credentials: "include" });
+    if (res.status === 401) { $("camWhy").textContent = "Login expired - log in again to see the camera"; throw new Error("login"); }
+    const stats = await res.json();
+    $("camWhy").textContent = stats.age_s == null ? "Camera offline - YOLO is not running"
+      : stats.age_s > 5 ? `Camera stopped ${Math.round(stats.age_s)} s ago` : "Connecting to the camera...";
+    const live = stats.live === true && !cameraPaused && !cameraImageError;
+    if (!live) {
+      cameraOffline();
+      if (!cameraPaused && Date.now() >= cameraRetryAt) startCameraStream();
+    } else {
+      $("camPlaceholder").hidden = true;
+      $("camImg").hidden = false;
+      $("camLive").classList.remove("offline");
+      $("camLive").lastElementChild.textContent = "LIVE";
+      $("camRoad").textContent = "Road: " + (stats.road || "—");
+      $("camFps").textContent = (Number(stats.fps) || 0).toFixed(1) + " fps";
+      if (!cameraStreamStarted && Date.now() >= cameraRetryAt) startCameraStream();
+    }
+    const inView = stats.in_view || {}, counted = stats.counted || {};
+    for (const key of ["car", "bike", "auto", "bus", "truck"]) {
+      const v = String(Number(inView[key]) || 0), el = $("cam-" + key);
+      if (el.textContent !== v) { el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 600); }
+      el.textContent = v;
+      $("cam-" + key + "-total").textContent = Number(counted[key]) || 0;
+    }
+    $("camWaiting").textContent = Number(stats.waiting) || 0;
+    $("camAlert").classList.toggle("alert", !!stats.alert);
+    $("camAlertText").textContent = stats.alert ? "TRAFFIC ALERT" : "Normal";
+    $("camLatency").textContent = (Number(stats.latency_ms) || 0).toFixed(0) + " ms";
+    const sentAge = stats.last_sent == null ? null : Math.max(0, Math.floor(Date.now() / 1000 - Number(stats.last_sent)));
+    $("camLastSent").textContent = sentAge == null ? "Never" : sentAge + " s ago";
+  } catch (_) {
+    cameraOffline();
+    if (!cameraPaused && Date.now() >= cameraRetryAt) startCameraStream();
+  }
+}
+if (location.pathname === "/control") {
+  getJSON("/api/me").then(({ user }) => {
+    $("authUser").textContent = user;
+    $("authControls").hidden = false;
+  }).catch(() => location.assign("/login"));
+  $("logout").onclick = async () => {
+    await fetch(api("/api/logout"), { method: "POST" });
+    location.assign("/");
+  };
+}
+const toast = m => { const t = $("toast"); t.textContent = m; t.style.opacity = 1; clearTimeout(t._h); t._h = setTimeout(() => t.style.opacity = 0, 2200); };
+const hhmm = s => { const [h, m] = s.split(":").map(Number); return h * 3600 + m * 60; };
+const command = (c, msg) => postJSON("/api/command", c).then(() => toast(msg));
+const demo = (c, msg) => postJSON("/api/demo", c).then(() => { if (msg) toast(msg); poll(); });
+
+function build() {
+  const main = $("main");
+  const cameraPanel = $("liveCameraPanel");
+  main.innerHTML = `
+  <section class="panel kpis" id="kpis" aria-label="Key figures"></section>
+  <section class="panel mapP">
+    <header><h2>Live network</h2><span class="sub" id="mapsub"></span>
+      <div class="right seg" role="group" aria-label="Show">
+        <button id="vSmart" aria-pressed="true">Our system</button><button id="vBase" aria-pressed="false">Baseline</button></div></header>
+    <div class="map" id="map"></div>
+    <div class="mapfoot">
+      <span class="level LOW">Free flow</span><span class="level MEDIUM">Slow (more than ${ST.settings.congested} waiting)</span><span class="level HIGH">Jam</span>
+      <span>Square = signal, light shows green or changing</span><span>Ring = priority zone active</span></div>
+  </section>
+  <div class="side">
+    <section class="panel"><header><h2>Diversions</h2><span class="sub" id="apprSub"></span></header><div class="body recs" id="recs"></div></section>
+    <section class="panel" id="camP" hidden><header><h2>Camera</h2><span class="sub" id="camSub"></span></header><div class="body" id="cam"></div></section>
+    <section class="panel"><header><h2>Event log</h2></header><div class="body"><ul class="log" id="log"></ul></div></section>
+  </div>
+  <section class="panel chartP"><header><h2>Vehicles waiting, our system against the baseline</h2>
+      <a class="right" id="cmpLink" href="/comparison.png" target="_blank" hidden>Full comparison</a></header>
+    <div class="body"><div class="legend"><span><i class="sw" style="--c:var(--ours)"></i>Our system</span><span><i class="sw" style="--c:var(--base)"></i>Baseline, fixed-time signals</span></div></div>
+    <div class="chart" id="qchart"></div></section>
+  <section class="panel sigP"><header><h2>Signals</h2><span class="sub">Waiting vehicles per approach</span></header><div class="body sigs" id="sigs"></div></section>
+  <section class="panel fcP"><header><h2>Predicted traffic today</h2><span class="sub" id="fcsub"></span></header>
+    <div class="body"><div class="legend" id="fclegend"></div></div><div class="chart" id="fchart"></div></section>
+  <section class="panel ctlP"><header><h2>Operator controls</h2></header><div class="body ctl">
+    <div><h3>Diversions</h3><div class="seg" role="group" aria-label="Approval mode">
+      <button id="apAuto">Apply automatically</button><button id="apMan">I approve each one</button></div></div>
+    <div><h3>Priority zones</h3><div id="zones"></div></div>
+    <div><h3>Give green manually</h3><div class="row">
+      <select id="fgJ" aria-label="Junction"></select><select id="fgR" aria-label="Road"></select>
+      <select id="fgS" aria-label="Seconds"><option>20</option><option selected>30</option><option>45</option><option>60</option></select>
+      <button class="btn primary" id="fgGo">Give green</button></div>
+      <p class="help">Holds green on that road, then the automatic control takes over again.</p></div>
+  </div></section>
+  <section class="panel" id="advisoryPanel" style="grid-column:1/-1"><header><h2>Public advisories</h2><button class="btn primary" id="newAdvBtn" type="button">+ New advisory</button></header>
+    <div class="body" id="advisoryBody"></div></section>`;
+  main.prepend(cameraPanel);
+  MAP = createMap($("map"), NET, { label: "Live road network" });
+  $("newAdvBtn").onclick = newAdvisory;
+  $("vSmart").onclick = () => setView("smart");
+  $("vBase").onclick = () => setView("fixed");
+  $("apAuto").onclick = () => command({ cmd: "approval", value: "auto" }, "Diversions now apply automatically");
+  $("apMan").onclick = () => command({ cmd: "approval", value: "manual" }, "Each diversion now waits for your approval");
+  $("fgJ").onchange = fillRoads;
+  $("fgGo").onclick = () => command({ cmd: "force_green", junction: $("fgJ").value, road: $("fgR").value, seconds: +$("fgS").value },
+                                    `Green given to ${$("fgR").value}`);
+  window.addEventListener("resize", () => { drawQueue(); drawForecast(); });
+  built = true;
+}
+
+async function loadAdvisories() {
+  try {
+    const payload = await getJSON("/api/advisories?all=1");
+    const items = Array.isArray(payload.advisories) ? payload.advisories : [];
+    const body = $("advisoryBody");
+    if (!items.length) {
+      body.innerHTML = `<p class="empty">No advisories yet. Publish one to show it here.</p>`;
+      return;
+    }
+    const groups = { active: [], upcoming: [], drafts: [], expired: [], withdrawn: [] };
+    for (const item of items) {
+      const state = item.state || "draft";
+      if (state === "active") groups.active.push(item);
+      else if (state === "upcoming") groups.upcoming.push(item);
+      else if (state === "draft") groups.drafts.push(item);
+      else if (state === "expired") groups.expired.push(item);
+      else if (state === "withdrawn") groups.withdrawn.push(item);
+    }
+    const render = list => list.map(item => {
+      const s = String(item.severity || "info").toLowerCase();
+      const closure = { full: "Full closure", partial: "One lane closed", slow: "Slow traffic", info: "Info only" }[item.closure || "info"];
+      const status = item.status || "draft";
+      const start = item.start ? new Date(item.start).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+      const end = item.end ? new Date(item.end).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "until further notice";
+      return `<div class="rec"><div class="h"><b>${esc(item.title)}</b><span class="status">${esc(status)}</span></div>
+        <div class="route"><span class="num">${esc(item.type)}</span> · ${esc(item.road_id || "Road not mapped")} · ${esc(closure)} · ${esc(s)}</div>
+        <div class="route">${esc(start)} to ${esc(end)}</div>
+        <div class="acts">
+          <button class="btn" data-edit="${item.id}">Edit</button>
+          ${status === "draft" ? `<button class="btn primary" data-publish="${item.id}">Publish</button>` : ""}
+          <button class="btn" data-withdraw="${item.id}">Withdraw</button>
+          <button class="btn" data-copy="${item.id}">Duplicate</button>
+        </div></div>`;
+    }).join("") || `<p class="empty">No items in this view.</p>`;
+    body.innerHTML = `
+      <div class="seg" role="tablist">` + [
+        ["Active", groups.active],
+        ["Upcoming", groups.upcoming],
+        ["Drafts", groups.drafts],
+        ["Expired", groups.expired],
+        ["Withdrawn", groups.withdrawn],
+      ].map(([name, list]) => `<button class="btn" type="button">${name} (${list.length})</button>`).join("") + `</div>
+      <div style="margin-top:12px;">${render(groups.active.length ? groups.active : items)}</div>`;
+    body.querySelectorAll("[data-publish]").forEach(b => b.onclick = async () => {
+      await postJSON(`/api/advisories/${b.dataset.publish}/publish`, {});
+      toast("Advisory published");
+      loadAdvisories();
+    });
+    body.querySelectorAll("[data-withdraw]").forEach(b => b.onclick = async () => {
+      const reason = prompt("Withdraw reason:");
+      if (!reason) return;
+      await postJSON(`/api/advisories/${b.dataset.withdraw}/withdraw`, { reason });
+      toast("Advisory withdrawn");
+      loadAdvisories();
+    });
+    body.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
+      const item = items.find(a => String(a.id) === b.dataset.copy);
+      if (!item) return;
+      await postJSON("/api/advisories", { ...item, id: undefined, title: `${item.title} (copy)`, status: "draft" });
+      toast("Draft copied");
+      loadAdvisories();
+    });
+    body.querySelectorAll("[data-edit]").forEach(b => b.onclick = async () => {
+      const item = items.find(a => String(a.id) === b.dataset.edit);
+      if (!item) return;
+      const title = prompt("Update title:", item.title || "");
+      if (title == null) return;
+      const next = { ...item, title, status: item.status || "draft" };
+      await postJSON(`/api/advisories/${item.id}`, next);
+      toast("Advisory updated");
+      loadAdvisories();
+    });
+  } catch (e) {
+    $("advisoryBody").innerHTML = `<p class="empty">Unable to read advisories.</p>`;
+  }
+}
+
+async function newAdvisory() {
+  const type = prompt("Type:", "VIP movement");
+  if (type == null) return;
+  const title = prompt("Title:", "VIP movement on E5");
+  if (title == null) return;
+  const road_id = prompt("Road ID (optional):", "E5");
+  const payload = {
+    type,
+    title,
+    road_id: road_id || "",
+    location_text: "Main corridor",
+    closure: "full",
+    severity: "critical",
+    start: new Date().toISOString(),
+    end: new Date(Date.now() + 30 * 60000).toISOString(),
+    alternative_route: "Use the ring road",
+    description: "Traffic diverted to keep the route clear.",
+    status: "draft",
+  };
+  await postJSON("/api/advisories", payload);
+  toast("Draft created");
+  loadAdvisories();
+}
+
+function setView(v) {
+  view = v;
+  $("vSmart").setAttribute("aria-pressed", v === "smart"); $("vBase").setAttribute("aria-pressed", v === "fixed");
+  render();
+}
+function fillRoads() {
+  const j = ST.smart.junctions[$("fgJ").value];
+  const cur = $("fgR").value;
+  $("fgR").innerHTML = Object.keys(j ? j.queues : {}).map(r => `<option ${r === cur ? "selected" : ""}>${esc(r)}</option>`).join("");
+}
+
+function kpis() {
+  const k = ST.smart.kpi || {}, f = (ST.fixed && ST.fixed.kpi) || null;
+  const cmp = (key, better, unit = "") => {
+    if (!f || f[key] == null || k[key] == null) return `<span>Baseline not running</span>`;
+    const d = k[key] - f[key], dec = unit ? 1 : 0;
+    if (Math.abs(d) < 0.5) return `<i style="--c:var(--ink-3)"></i>Same as baseline`;
+    const good = better === "low" ? d < 0 : d > 0;
+    const word = unit ? `km/h ${d < 0 ? "slower" : "faster"}` : (d < 0 ? "fewer" : "more");
+    return `<i style="--c:${good ? "var(--free)" : "var(--jam)"}"></i>${fmt(Math.abs(d), dec)} ${word} than baseline (${fmt(f[key], dec)}${unit ? " km/h" : ""})`;
+  };
+  $("kpis").innerHTML = [
+    ["Vehicles waiting now", fmt(k.waiting), "", cmp("waiting", "low")],
+    ["Average speed", fmt(k.avg_speed_kmh, 1), "km/h", cmp("avg_speed_kmh", "high", "km/h")],
+    ["Vehicles on the network", fmt(k.vehicles), "", cmp("vehicles", "low")],
+    ["Vehicles diverted", fmt(k.diverted), "", `<span>Sent around congestion</span>`],
+    ["Signal decisions", fmt(k.switches), "", `<span>Green changed by the system</span>`],
+  ].map(([l, v, u, c]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}${u ? `<small>${u}</small>` : ""}</div><div class="c">${c}</div></div>`).join("");
+}
+
+function recs() {
+  const s = ST.smart;
+  $("apprSub").textContent = s.approval === "auto" ? "Applied automatically" : "Waiting for your approval";
+  $("apAuto").setAttribute("aria-pressed", s.approval === "auto"); $("apMan").setAttribute("aria-pressed", s.approval !== "auto");
+  const list = s.recs.slice(0, 5);
+  if (!list.length) { $("recs").innerHTML = `<p class="empty">No congestion. Diversions appear here when a road backs up.</p>`; return; }
+  $("recs").innerHTML = list.map(r => {
+    const status = { pending: "Waiting for approval", applied: `Applied, ${r.diverted} vehicles diverted`, rejected: "Rejected", advice: "Advice only" }[r.status] || r.status;
+    return `<div class="rec ${r.status}"><div class="h"><b>Road ${esc(r.road)}</b><span class="num">${esc(r.clock)}</span><span class="status">${esc(status)}</span></div>
+      <div class="route">${r.kind === "pre" ? `PREDICTED rush (from 14-day history): vehicles coming behind sent via <b>${esc(r.route.replaceAll(" > ", " to "))}</b> before the jam forms.`
+        : `${r.waiting} waiting, ${r.affected} vehicles heading there. Use <b>${esc(r.route.replaceAll(" > ", " to "))}</b>,
+      saves <span class="num">${r.saving_s} s</span>.`}</div>
+      ${r.status === "pending" ? `<div class="acts"><button class="btn primary" data-a="${r.id}">Approve diversion</button><button class="btn" data-r="${r.id}">Reject</button></div>` : ""}</div>`;
+  }).join("");
+  $("recs").querySelectorAll("[data-a]").forEach(b => b.onclick = () => command({ cmd: "approve", rec: +b.dataset.a }, "Diversion approved"));
+  $("recs").querySelectorAll("[data-r]").forEach(b => b.onclick = () => command({ cmd: "reject", rec: +b.dataset.r }, "Diversion rejected"));
+}
+
+function camera() {
+  const c = ST.smart.camera;
+  $("camP").hidden = !c;
+  if (!c) return;
+  const counts = c.counts || {};
+  $("camSub").textContent = `Junction ${c.junction}: ` + ({ waiting: "waiting for the camera", camera: "LIVE, SUMO follows the camera",
+    normal: "camera stopped, normal traffic running", stopped: "camera stopped" }[c.phase] || "last counts");
+  const roads = Object.keys(counts);
+  if (!roads.length) { $("cam").innerHTML = `<p class="empty">Waiting for the first counts from YOLO.</p>`; return; }
+  const max = Math.max(5, ...roads.map(r => counts[r].count || 0));
+  $("cam").innerHTML = roads.map(r => { const m = counts[r];
+    return `<div class="q" style="grid-template-columns:96px 1fr 26px"><span class="r">${esc(r)} ${c.roads[r] ? "(" + esc(c.roads[r]) + ")" : ""}</span>
+      <span class="bar"><i style="width:${Math.min(100, (m.count || 0) / max * 100)}%;background:var(--ours)"></i></span>
+      <span class="n">${m.count || 0}</span></div>
+      <div style="font-size:12px;color:var(--ink-3);margin:2px 0 6px">${["car","bike","auto","bus","truck"].map(t => `${t} ${m[t] || 0}`).join(", ")}; ${m.queue || 0} waiting</div>`; }).join("");
+}
+
+function log() {
+  $("log").innerHTML = ST.smart.alerts.slice(0, 30).map(a =>
+    `<li><span class="tm">${esc(a.clock)}</span><span class="k" style="--c:${KIND_COLOR[a.kind] || "var(--ink-3)"}">${esc(KIND_WORD[a.kind] || a.kind)}</span><span>${esc(a.text)}</span></li>`).join("")
+    || `<li><span></span><span></span><span class="empty">Nothing yet</span></li>`;
+}
+
+function signals() {
+  const js = ST.smart.junctions;
+  $("sigs").innerHTML = Object.keys(js).sort().map(id => {
+    const j = js[id], max = Math.max(6, ...Object.values(j.queues));
+    return `<div class="sig"><div class="h"><b>${esc(id)}</b><span>${j.green.length ? `green ${j.green_for} s` : "changing"}${j.override ? ", manual" : ""}</span></div>` +
+      Object.entries(j.queues).map(([r, q]) => `<div class="q ${j.green.includes(r) ? "green" : ""}"><span class="r">${esc(r)}</span>
+        <span class="bar"><i style="width:${Math.min(100, q / max * 100)}%"></i></span><span class="n">${q}</span></div>`).join("") + `</div>`;
+  }).join("") || `<p class="empty">No traffic lights found. Set the crossings to traffic_light in netedit.</p>`;
+  const sel = $("fgJ"), cur = sel.value;
+  const ids = Object.keys(js).sort();
+  if (sel.options.length !== ids.length) { sel.innerHTML = ids.map(i => `<option>${esc(i)}</option>`).join(""); if (cur) sel.value = cur; fillRoads(); }
+}
+
+function zones() {
+  $("zones").innerHTML = ST.smart.places.map(p => {
+    const ov = p.override || "auto";
+    const why = p.override ? "set by you" : p.predicted && !p.scheduled ? "preparing for predicted rush" : p.scheduled ? "scheduled time" : "outside its hours";
+    return `<div class="zone"><img src="${PLACE_IMG[p.name] || ""}" alt=""><div><div>${esc(p.name)} on road ${esc(p.edge)}</div>
+      <div class="s">${p.on ? "Priority on" : "Priority off"}, ${why}</div></div>
+      <select data-z="${esc(p.name)}" aria-label="${esc(p.name)} priority">
+        <option value="auto" ${ov === "auto" ? "selected" : ""}>Automatic</option>
+        <option value="on" ${ov === "on" ? "selected" : ""}>Always on</option>
+        <option value="off" ${ov === "off" ? "selected" : ""}>Off</option></select></div>`;
+  }).join("");
+  $("zones").querySelectorAll("select").forEach(s => s.onchange = () =>
+    command({ cmd: "place", name: s.dataset.z, value: s.value === "auto" ? null : s.value }, `${s.dataset.z} priority updated`));
+}
+
+let TL = { fixed: [], smart: [] };
+function drawQueue() {
+  if (!built) return;
+  const startSec = hhmm(ST.settings.start_clock);
+  lineChart($("qchart"), {
+    height: 250, endLabels: true, label: "Vehicles waiting over time",
+    series: [
+      { name: "Baseline", short: "Baseline", color: "var(--base)", tipColor: "#c3c9cd", points: TL.fixed.map(r => [r[0], r[2], r[1]]), labelDy: -6 },
+      { name: "Our system", short: "Our system", color: "var(--ours)", tipColor: "#7fb2ef", points: TL.smart.map(r => [r[0], r[2], r[1]]), labelDy: 8 },
+    ],
+    xFmt: p => p[2], empty: "The graph starts when the simulation runs",
+    xTicks: (a, b) => { const out = [], st = (b - a) > 2400 ? 900 : 300; for (let x = Math.ceil(a / st) * st; x <= b; x += st) { const c = (startSec + x) % 86400; out.push([x, String(Math.floor(c / 3600)).padStart(2, "0") + ":" + String(Math.floor(c % 3600 / 60)).padStart(2, "0")]); } return out; },
+  });
+}
+
+function drawForecast() {
+  if (!built) return;
+  if (!FC) { $("fchart").innerHTML = `<p class="empty" style="padding:0 16px 16px">Run <code>python history.py</code> and <code>python predict.py</code> to see the prediction.</p>`; return; }
+  const day = ST.smart.day, slot = FC.slot_min || 15, data = (FC.days || {})[day] || {};
+  const order = ["School", "Office", "Hospital", "Main"], colors = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
+  const names = order.filter(n => data[n]);
+  $("fcsub").textContent = `${DAYS[day] || day}, ${FC.model}, tested accuracy ${fmt(FC.accuracy_pct, 1)} %`;
+  $("fclegend").innerHTML = names.map((n, i) => `<span><i class="sw" style="--c:${colors[order.indexOf(n)]}"></i>${n === "Main" ? "Main roads" : n + " area"}</span>`).join("");
+  const nowH = ((hhmm(ST.settings.start_clock) + ST.smart.t) % 86400) / 3600;
+  lineChart($("fchart"), {
+    height: 230, label: "Predicted vehicles per 15 minutes", unit: "vehicles / 15 min", xmin: 0, xmax: 24, nowX: nowH,
+    series: names.map(n => ({ name: n === "Main" ? "Main roads" : n + " area", color: colors[order.indexOf(n)], points: data[n].map((v, i) => [i * slot / 60, v]) })),
+    xFmt: p => { const h = Math.floor(p[0]), m = Math.round((p[0] - h) * 60); return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0"); },
+    xTicks: () => [0, 3, 6, 9, 12, 15, 18, 21, 24].map(h => [h, String(h).padStart(2, "0") + ":00"]),
+  });
+}
+
+function demoBar() {
+  const d = ST.demo || {}, t = ST.smart ? ST.smart.t : 0;
+  const held = d.paused || (d.hold_at != null && t >= d.hold_at);
+  const running = ST.smart_live;
+  $("runstate").textContent = !running ? "Stopped" : held ? "Paused" : d.ff_next || d.ff_to != null ? "Jumping" : "Running";
+  $("runstate").className = "state" + (held && running ? " paused" : "");
+  $("stagetxt").innerHTML = d.stage ? `<b>${esc(d.stage_clock)}</b> ${esc(d.stage)}` : "Stages appear here as the system acts.";
+  $("bPause").textContent = held ? "Resume" : "Pause";
+  ["bPause", "bNext", "bJump", "bSlow", "bFast", "bWhole"].forEach(b => $(b).disabled = !running);
+  $("speed").textContent = running ? `${d.delay || ST.settings.delay} ms per simulated second` : "";
+  const start = hhmm(ST.settings.start_clock);
+  const opts = JUMPS.filter(([, c]) => { const g = hhmm(c) - start; return g > t && g < ST.settings.sim_time; });
+  const key = opts.map(o => o[1]).join();
+  if ($("jumpSel").dataset.k !== key) {
+    $("jumpSel").dataset.k = key;
+    $("jumpSel").innerHTML = opts.length ? opts.map(([n, c]) => `<option value="${c}">${n}, ${c}</option>`).join("") : `<option value="">No rush left in this run</option>`;
+  }
+  $("bJump").disabled = !running || !opts.length;
+}
+$("bPause").onclick = () => {
+  const d = ST.demo || {}, held = d.paused || (d.hold_at != null && ST.smart.t >= d.hold_at);
+  held ? demo({ paused: false, hold_at: null, ff_to: null, ff_next: false }, "Resumed") : demo({ paused: true }, "Paused");
+};
+$("bNext").onclick = () => demo({ paused: false, hold_at: null, ff_to: null, ff_next: true }, "Running to the next stage");
+$("bJump").onclick = () => { const c = $("jumpSel").value; if (!c) return; const g = hhmm(c) - hhmm(ST.settings.start_clock);
+  demo({ paused: false, ff_next: false, ff_to: g, hold_at: g }, `Jumping to ${c}`); };
+$("bSlow").onclick = () => demo({ delay: Math.min(3000, (ST.demo.delay || ST.settings.delay) * 2) }, "Slower");
+$("bFast").onclick = () => demo({ delay: Math.max(10, Math.round((ST.demo.delay || ST.settings.delay) / 2)) }, "Faster");
+$("bWhole").onclick = () => demo({ focus: { edge: null, seq: ((ST.demo.focus || {}).seq || 0) + 1 } }, "Showing the whole map");
+
+function render() {
+  const s = ST.smart;
+  $("clk").textContent = s.clock;
+  $("day").textContent = `${DAYS[s.day] || s.day}, simulation minute ${Math.floor(s.t / 60)}`;
+  $("live").className = "live" + (ST.smart_live ? " on" : "");
+  $("live").lastElementChild.textContent = ST.smart_live ? (ST.fixed_live ? "Live, with baseline" : "Live") : "Stopped";
+  kpis(); recs(); camera(); log(); signals(); zones(); demoBar(); loadAdvisories();
+  const shown = view === "fixed" && ST.fixed ? ST.fixed : s;
+  MAP.update(shown);
+  MAP.highlight(s.recs.filter(r => r.status === "pending" || r.status === "applied").slice(0, 1).map(r => r.road));
+  const jam = Object.values(shown.roads).filter(r => r.level === "HIGH").length, slow = Object.values(shown.roads).filter(r => r.level === "MEDIUM").length;
+  $("mapsub").textContent = `${view === "fixed" ? "Baseline" : "Our system"}: ${jam} jammed, ${slow} slow, ${Object.keys(shown.roads).length - jam - slow} free`;
+  $("vBase").disabled = !ST.fixed;
+  $("cmpLink").hidden = !ST.has_comparison;
+  $("cmpLink").href = api("/comparison.png");
+}
+
+async function poll() {
+  try {
+    ST = await getJSON("/api/state");
+    if (!ST.smart) { demoBar(); return; }
+    if (!NET) NET = await getJSON("/api/net");
+    if (!built) build();
+    render();
+    if (Date.now() - forecastLoaded > 60000) { FC = await getJSON("/api/forecast"); forecastLoaded = Date.now(); drawForecast(); }
+  } catch (e) { $("live").className = "live"; $("live").lastElementChild.textContent = "Dashboard server not reachable"; }
+}
+async function pollTimeline() {
+  if (!built) return;
+  try { TL = await getJSON("/api/timeline"); drawQueue(); drawForecast(); } catch (e) {}
+}
+initLiveCamera();
+poll(); setInterval(poll, 2000); setInterval(pollTimeline, 4000); setTimeout(pollTimeline, 800);
+</script>
+</body>
+</html>

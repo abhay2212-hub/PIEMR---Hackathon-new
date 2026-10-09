@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>City Traffic Now</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  body { background: var(--paper); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 40px; }
+  .top { background: var(--sign); color: #fff; }
+  .top .wrap { padding-top: 16px; padding-bottom: 18px; display: flex; align-items: center; gap: 14px; }
+  .shield { width: 44px; height: 44px; border: 2.5px solid #fff; border-radius: 8px; display: grid; place-items: center; flex: none; }
+  .shield svg { width: 26px; height: 26px; }
+  .top h1 { font: 600 22px/1.1 var(--figure); }
+  .top p { margin: 3px 0 0; font-size: 13px; color: #c9dcee; }
+  .top .t { margin-left: auto; font: 600 26px var(--figure); font-variant-numeric: tabular-nums; }
+
+  .adv-banner { display: none; margin: 16px 0; padding: 14px 18px; border-radius: var(--radius-lg); background: #fbe8e8; border: 1px solid #f1b2b2; color: #6b1d1d; }
+  .adv-banner.show { display: block; }
+  .chip-btn { border: 1px solid var(--rule); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+  .chip-btn.active { background: var(--sign); color: #fff; border-color: var(--sign); }
+  .adv-list { display: grid; gap: 12px; margin: 16px 0 20px; }
+  .adv-card { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .adv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .adv-type { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink); }
+  .chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 10px; font-size: 11px; font-weight: 600; }
+  .chip.critical { background: #fbe8e8; color: #9b1b1b; }
+  .chip.warning { background: #fff4d6; color: #8a5e00; }
+  .chip.info { background: #ebf4ff; color: #18519a; }
+  .adv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 10px; margin-top: 12px; }
+  .adv-box { border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 8px 10px; background: #f7f9fa; }
+  .adv-box b { display: block; color: var(--ink-2); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .adv-box span { font-size: 14px; }
+  .adv-banner a { color: inherit; font-weight: 600; }
+  .now { margin: 16px 0; padding: 16px 18px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--rule);
+         display: flex; gap: 14px; align-items: center; }
+  .now .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c); flex: none; box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 18%, transparent); }
+  .now b { font: 600 18px var(--figure); display: block; }
+  .now span { color: var(--ink-2); font-size: 13.5px; }
+
+  h2 { font: 600 16px var(--text); margin: 22px 0 10px; }
+  .adv { display: flex; flex-direction: column; gap: 8px; }
+  .a { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; padding: 12px 14px; background: var(--panel);
+       border: 1px solid var(--rule); border-radius: var(--radius-sm); border-left: 4px solid var(--c, var(--sign)); }
+  .a img, .a .ic { width: 30px; height: 30px; }
+  .a .ic { border-radius: 6px; background: var(--c); color: #fff; display: grid; place-items: center; font: 700 18px var(--figure); }
+  .a b { display: block; font-weight: 600; }
+  .a span { color: var(--ink-2); font-size: 13.5px; }
+
+  .finder { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius-lg); overflow: hidden; }
+  .finder .f { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px; }
+  .finder label { font-size: 12.5px; color: var(--ink-2); display: grid; gap: 4px; }
+  .finder select { width: 100%; height: 42px; }
+  .res { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; padding: 4px 16px 14px; align-items: baseline; }
+  .res .big { font: 600 40px/1 var(--figure); font-variant-numeric: tabular-nums; }
+  .res .big small { font-size: 17px; color: var(--ink-2); font-weight: 500; margin-left: 4px; }
+  .res .via { color: var(--ink-2); font-size: 13.5px; }
+  .res .via b { color: var(--ink); }
+  .save { grid-column: 1 / -1; font-size: 13.5px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--sign-tint); color: var(--sign-dark); }
+  .map { height: 360px; border-top: 1px solid var(--rule); background: #f6f8f9; }
+  .key { display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 16px; font-size: 12.5px; color: var(--ink-2); border-top: 1px solid var(--rule); }
+  .key .rt { display: inline-block; width: 22px; border-top: 3px dashed var(--sign); vertical-align: middle; margin-right: 6px; }
+
+  .busy { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius-lg); padding: 6px 16px; }
+  .busy .r { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--rule-soft); }
+  .busy .r:first-child { border-top: 0; }
+  .busy img { width: 26px; height: 26px; }
+  .busy .w { font-family: var(--figure); font-size: 15px; }
+  .busy .nm { font-size: 13px; color: var(--ink-2); }
+  .foot { margin-top: 26px; color: var(--ink-3); font-size: 12.5px; }
+  .wait { text-align: center; padding: 60px 10px; color: var(--ink-2); }
+  @media (max-width: 480px) { .finder .f { grid-template-columns: 1fr; } .top .t { font-size: 20px; } .res .big { font-size: 34px; } }
+</style>
+</head>
+<body>
+<div class="top"><div class="wrap">
+  <div class="shield" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg></div>
+  <div><h1>City traffic now</h1><p id="upd">Connecting</p></div>
+  <div class="t" id="clk"></div>
+</div></div>
+
+<div class="wrap">
+  <div id="advBanner" class="adv-banner" aria-live="polite"></div>
+  <div id="publicAdvisories" class="adv-list"></div>
+</div>
+<div class="wrap" id="app"><p class="wait">Live traffic appears here as soon as the city system is running.</p></div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const DAYS = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
+let NET, MAP, ST, FC, built = false, lastKey = "";
+const $ = id => document.getElementById(id);
+
+function build() {
+  const dests = NET.exits.map(e => [e.id, e.name]).concat(ST.smart.places.map(p => [p.edge, p.name]));
+  $("app").innerHTML = `
+    <div class="now" id="now"></div>
+    <h2>Advisories</h2><div class="adv" id="adv"></div>
+    <h2>Find the least congested route</h2>
+    <div class="finder">
+      <div class="f">
+        <label>From<select id="from">${NET.entries.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join("")}</select></label>
+        <label>To<select id="to">${dests.map(([id, n]) => `<option value="${esc(id)}">${esc(n)}</option>`).join("")}</select></label>
+      </div>
+      <div class="res" id="res"></div>
+      <div class="map" id="map"></div>
+      <div class="key"><span><i class="rt"></i>Your route</span><span class="level LOW">Free</span><span class="level MEDIUM">Slow</span><span class="level HIGH">Jam</span></div>
+    </div>
+    <h2 id="busyH">Busy times today</h2><div class="busy" id="busy"></div>
+    <p class="foot">Route times use live travel times on every road and update every few seconds.</p>`;
+  MAP = createMap($("map"), NET, { pad: 30, label: "Road map with your route" });
+  $("from").onchange = $("to").onchange = () => { lastKey = ""; findRoute(); };
+  const pickTo = () => {             // default destination: anything except going back where you came from
+    const from = $("from").value, rev = NET.reverse[from];
+    const i = dests.findIndex(([id]) => id !== rev && id !== from);
+    if (i >= 0) $("to").selectedIndex = i;
+  };
+  pickTo();
+  $("from").onchange = () => { pickTo(); lastKey = ""; findRoute(); };
+  built = true;
+}
+
+let publicAdvisories = [], currentAdvFilter = "All";
+
+function renderPublicAdvisories() {
+  const list = publicAdvisories.filter(a => currentAdvFilter === "All" || {
+    "VIP": "VIP movement",
+    "Construction": "Construction work",
+    "Road damage": "Road damage / pothole",
+    "Other": "Other",
+  }[currentAdvFilter] === a.type || (currentAdvFilter === "Road damage" && a.type === "Road damage / pothole"));
+  const banner = $("advBanner");
+  const critical = list.filter(a => a.state === "active" && (a.severity || "info") === "critical");
+  if (critical.length) {
+    const a = critical[0];
+    const end = a.end ? new Date(a.end).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "until further notice";
+    banner.classList.add("show");
+    banner.innerHTML = `<strong>⚠️ ROAD CLOSED:</strong> ${esc(a.title)} - ${esc(a.location_text || a.road_id || "Road")} until ${esc(end)}`;
+  } else {
+    banner.classList.remove("show");
+    banner.innerHTML = "";
+  }
+  const groups = { active: [], upcoming: [] };
+  for (const a of list) {
+    if (a.state === "active") groups.active.push(a);
+    else if (a.state === "upcoming") groups.upcoming.push(a);
+  }
+  const card = (a) => {
+    const sev = (a.severity || "info").toLowerCase();
+    const start = a.start ? new Date(a.start).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+    const end = a.end ? new Date(a.end).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "until further notice";
+    const clos = { full: "Road fully closed", partial: "One lane closed", slow: "Expect slow traffic", info: "Info only" }[a.closure || "info"];
+    const when = a.state === "active" ? `Ends in ${a.minutes_left != null ? a.minutes_left + " min" : "less than 1 min"}` : `Starts in ${a.starts_in_min != null ? a.starts_in_min + " min" : "soon"}`;
+    return `<article class="adv-card">
+      <div class="adv-head">
+        <div class="adv-type"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${sev === "critical" ? "#d43e3e" : sev === "warning" ? "#d3a11e" : "#2d7be0"};"></span>${esc(a.type)}</div>
+        <span class="chip ${sev}">${esc(sev)}</span>
+      </div>
+      <h3 style="margin:10px 0 6px;font-size:20px;">${esc(a.title)}</h3>
+      <div style="color:var(--ink-2);font-size:13px;">${esc(a.road_id || "Road")} · ${esc(a.location_text || "City stretch")}</div>
+      <div class="adv-grid">
+        <div class="adv-box"><b>Closure</b><span>${esc(clos)}</span></div>
+        <div class="adv-box"><b>Timing</b><span>${esc(start)} - ${esc(end)}</span></div>
+        <div class="adv-box"><b>Update</b><span>${esc(when)}</span></div>
+      </div>
+      ${a.alternative_route ? `<div class="adv-box" style="margin-top:10px;"><b>Alternative route</b><span>${esc(a.alternative_route)}</span></div>` : ""}
+      ${a.description ? `<p style="margin:10px 0 0;color:var(--ink-2);">${esc(a.description)}</p>` : ""}
+      ${a.helpline ? `<p style="margin:10px 0 0;"><a href="tel:${esc(a.helpline)}">Call helpline: ${esc(a.helpline)}</a></p>` : ""}
+      <div style="margin-top:10px;color:var(--ink-2);font-size:12px;">Issued by Traffic Authority • Updated ${esc(a.updated_at || a.created_at || "just now")}</div>
+    </article>`;
+  };
+  const chip = (label) => `<button class="chip-btn ${currentAdvFilter === label ? "active" : ""}" data-filter="${label}">${label}</button>`;
+  $("publicAdvisories").innerHTML = `
+    <div class="adv-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">${["All", "VIP", "Construction", "Road damage", "Other"].map(chip).join("")}</div>
+    <div class="adv-group">
+      <h3 style="margin:0 0 8px;">Now</h3>
+      ${groups.active.length ? groups.active.map(card).join("") : `<div class="a" style="--c:var(--free)"><span class="ic">✓</span><div><b>No advisories right now.</b><span>Roads are running normally.</span></div></div>`}
+    </div>
+    <div class="adv-group" style="margin-top:16px;">
+      <h3 style="margin:0 0 8px;">Coming up</h3>
+      ${groups.upcoming.length ? groups.upcoming.map(card).join("") : `<div class="a" style="--c:var(--free)"><span class="ic">✓</span><div><b>No future advisories</b><span>Roads are likely to stay clear.</span></div></div>`}
+    </div>`;
+  $("publicAdvisories").querySelectorAll("[data-filter]").forEach(button => {
+    button.onclick = () => { currentAdvFilter = button.dataset.filter; renderPublicAdvisories(); };
+  });
+}
+
+async function loadPublicAdvisories() {
+  try {
+    const payload = await getJSON("/api/advisories");
+    publicAdvisories = Array.isArray(payload.advisories) ? payload.advisories : [];
+    renderPublicAdvisories();
+  } catch (err) {
+    publicAdvisories = [];
+    renderPublicAdvisories();
+  }
+}
+
+function status() {
+  const roads = Object.values(ST.smart.roads), jam = roads.filter(r => r.level === "HIGH").length, slow = roads.filter(r => r.level === "MEDIUM").length;
+  const [c, title, sub] = jam ? ["var(--jam)", `${jam} ${jam === 1 ? "road is" : "roads are"} jammed`, "Use the route finder below to go around it."]
+    : slow ? ["var(--slow)", `Slow traffic on ${slow} ${slow === 1 ? "road" : "roads"}`, "Expect short delays near the signals."]
+    : ["var(--free)", "Traffic is moving normally", "No jams on the network right now."];
+  $("now").style.setProperty("--c", c);
+  $("now").innerHTML = `<i class="dot"></i><div><b>${title}</b><span>${sub}</span></div>`;
+}
+
+function advisories() {
+  const out = [];
+  for (const r of ST.smart.recs.slice(0, 3)) if (["applied", "advice", "pending"].includes(r.status))
+    out.push(r.kind === "pre"
+      ? `<div class="a" style="--c:var(--busy)"><span class="ic">!</span><div><b>Rush expected on road ${esc(r.road)} (predicted)</b>
+      <span>Avoid it now: use ${esc(r.route.replaceAll(" > ", ", "))}.</span></div></div>`
+      : `<div class="a" style="--c:var(--busy)"><span class="ic">!</span><div><b>Heavy traffic on road ${esc(r.road)}</b>
+      <span>Use ${esc(r.route.replaceAll(" > ", ", "))}. About ${r.saving_s} s faster.</span></div></div>`);
+  for (const p of ST.smart.places) if (p.on) {
+    const msg = { School: ["School zone active", "Drive at 25 km/h and watch for children crossing."],
+                  Hospital: ["Hospital area", "Keep the road clear for ambulances. No honking."],
+                  Office: ["Office rush", "Signals favour the office road for now."] }[p.name];
+    if (msg) out.push(`<div class="a" style="--c:var(--sign)"><img src="${PLACE_IMG[p.name]}" alt=""><div><b>${msg[0]} on road ${esc(p.edge)}</b><span>${msg[1]}</span></div></div>`);
+  }
+  $("adv").innerHTML = out.join("") || `<div class="a" style="--c:var(--free)"><span class="ic">✓</span><div><b>No advisories</b><span>Roads are clear.</span></div></div>`;
+}
+
+async function findRoute() {
+  const a = $("from").value, b = $("to").value;
+  const r = await getJSON(`/api/route?from=${encodeURIComponent(a)}&to=${encodeURIComponent(b)}`);
+  if (!r.route) { $("res").innerHTML = `<p class="via" style="grid-column:1/-1">No route between these two points. Pick another destination.</p>`; MAP.route(null); return; }
+  const slower = r.usual && r.usual.join() !== r.route.join() && r.t_usual - r.t_best >= 5;
+  $("res").innerHTML = `<div class="big">${fmt(r.t_best / 60, 1)}<small>min</small></div>
+    <div class="via">Go via <b>${esc(r.route.join(", "))}</b></div>
+    ${slower ? `<div class="save">The usual route takes ${fmt(r.t_usual / 60, 1)} min right now. This one saves ${fmt((r.t_usual - r.t_best) / 60, 1)} min.</div>` : ""}`;
+  MAP.route(r.route);
+}
+
+function busy() {
+  if (!FC) { $("busyH").hidden = $("busy").hidden = true; return; }
+  const peaks = (FC.peaks || {})[ST.smart.day] || {};
+  const rows = ["School", "Office", "Hospital"].filter(n => (peaks[n] || []).length).map(n =>
+    `<div class="r"><img src="${PLACE_IMG[n]}" alt=""><div><div class="nm">${n} area</div><div class="w">${peaks[n].map(([a, b]) => `${a} to ${b}`).join(", ")}</div></div></div>`);
+  $("busyH").textContent = `Busy times today, ${DAYS[ST.smart.day] || ST.smart.day}`;
+  $("busy").innerHTML = rows.join("") || `<div class="r"><span></span><div>No busy times expected.</div></div>`;
+}
+
+async function poll() {
+  try {
+    ST = await getJSON("/api/state");
+    if (!ST.smart) { $("upd").textContent = "Waiting for live data"; return; }
+    if (!NET) NET = await getJSON("/api/net");
+    if (!FC) FC = await getJSON("/api/forecast");
+    if (!built) build();
+    $("clk").textContent = ST.smart.clock;
+    $("upd").textContent = ST.smart_live ? "Live, updated every few seconds" : "Not updating right now";
+    MAP.update(ST.smart); status(); advisories(); busy(); loadPublicAdvisories();
+    const key = ST.smart.t - (ST.smart.t % 6);
+    if (key !== lastKey) { lastKey = key; findRoute(); }
+  } catch (e) { $("upd").textContent = "Cannot reach the traffic server"; }
+}
+poll(); loadPublicAdvisories(); setInterval(poll, 3000); setInterval(loadPublicAdvisories, 15000);
+</script>
+</body>
+</html>

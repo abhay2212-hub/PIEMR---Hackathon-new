@@ -1,0 +1,61 @@
+TRAFFIC SYSTEM - STEPS
+======================
+
+Before you start: SUMO must be installed (sumo-gui must open), and Python must work.
+
+STEP 1  Put your network in this folder
+        In netedit: set the 4 crossings to "traffic_light", press F5,
+        then File > Save Network As > net.net.xml  (save it inside THIS folder)
+
+STEP 2  Open this folder in VS Code (File > Open Folder) and open a terminal (Ctrl + `)
+
+STEP 3  Install (only once)
+            pip install -r requirements.txt
+
+STEP 4  Prepare the data (only once)
+            python history.py
+            python predict.py
+            python make_traffic.py
+
+STEP 5  Start the dashboard  (keep this terminal open)
+            python dashboard_server.py
+        Open in the browser:  http://localhost:8600          (control room)
+                              http://localhost:8600/public   (public page)
+
+STEP 6  Open a SECOND terminal (the + button) and start the simulation
+            python both.py --predict
+        LEFT window = baseline (normal signals), RIGHT window = our system.
+        It pauses by itself at each stage -> press "Resume" or "Next stage" in the dashboard.
+
+STEP 7  When it finishes (or you close the SUMO windows) open comparison.png = the results.
+
+
+If something goes wrong
+-----------------------
+"No such file net.net.xml"   -> Step 1: the file is not in this folder or has another name
+"no traffic lights found"    -> Step 1: crossings are not set to traffic_light
+"No module named ..."        -> Step 3 again
+"Port 8600 is not available" -> the dashboard is already running in another terminal
+Dashboard shows "Waiting"    -> Step 6 is not running yet
+Run stays paused             -> press Resume in the dashboard
+                                (no pauses: open settings.py, set  AUTO_PAUSE = []  and start Step 6 again)
+
+LINKING YOLO (camera)  - details in YOLO_LINK.md
+-----------------------------------------------
+Terminal 1:  python dashboard_server.py
+Terminal 2:  YOLO, one of:
+               python main_linked.py                                 (teammate's phone CCTV YOLO, linked)
+               python main_linked.py --source video.mp4              (same, with a video file)
+               python fake_yolo.py                                   (test, no camera)
+               python camera_yolo.py --source video.mp4 --draw       (once: draw the 4 roads)
+               python camera_yolo.py --source video.mp4 --model friend_model.pt
+               or your friend's own program using yolo_link.py
+Terminal 3:  python both.py --yolo --predict
+
+PUBLISH ON NETLIFY (optional)  - details in NETLIFY.md
+-------------------------------------------------------
+1. settings.py: CONTROL_KEY = "your-secret"
+2. dashboard_server.py + both.py running
+3. cloudflared tunnel --url http://localhost:8600          -> copy the https://...trycloudflare.com address
+4. python make_netlify_site.py https://...trycloudflare.com
+5. drag the netlify_site folder onto https://app.netlify.com/drop

@@ -1,0 +1,1 @@
+{"time": 1791589195.4728425, "live": false, "source": "usb", "road": "W", "in_view": {"car": 0, "bike": 0, "auto": 0, "bus": 0, "truck": 0}, "counted": {"car": 432, "bike": 0, "auto": 0, "bus": 9, "truck": 29}, "waiting": 0, "alert": false, "latency_ms": 50, "fps": 13.0, "window_count": 0, "last_sent": 1791589188.86736}

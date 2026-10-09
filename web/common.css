@@ -1,0 +1,66 @@
+/* Shared look for both dashboards: road-signage blue, DIN-style figures, status colours kept for traffic state only. */
+:root {
+  --paper: #edf1f3;
+  --panel: #ffffff;
+  --ink: #13232e;
+  --ink-2: #4e5e69;
+  --ink-3: #7b8892;
+  --rule: #d5dde2;
+  --rule-soft: #e7ecef;
+  --sign: #0b4f8a;          /* informatory road-sign blue */
+  --sign-dark: #083c69;
+  --sign-tint: #e3edf7;
+  --ours: #2a78d6;          /* our system (series 1) */
+  --base: #8a949b;          /* baseline (reference, neutral) */
+  --free: #0ca30c;          /* status: good */
+  --slow: #fab219;          /* status: warning */
+  --busy: #ec835a;          /* status: serious */
+  --jam: #d03b3b;           /* status: critical */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --radius-lg: 10px;
+  --radius-sm: 6px;
+  --figure: "Bahnschrift", "DIN Alternate", "DIN 2014", "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+  --text: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.45 var(--text); }
+button, select, input { font: inherit; color: inherit; }
+.num { font-family: var(--figure); font-variant-numeric: tabular-nums; }
+h1, h2, h3 { margin: 0; font-weight: 600; }
+h2 { font: 600 15px/1.3 var(--text); }
+a { color: var(--sign); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px;
+  border: 1px solid var(--rule); background: var(--panel); border-radius: var(--radius-sm);
+  cursor: pointer; white-space: nowrap;
+}
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--sign); border-color: var(--sign); color: #fff; }
+.btn.primary:hover { background: var(--sign-dark); }
+.btn.quiet { border-color: transparent; background: transparent; }
+.btn:disabled { opacity: .45; cursor: default; }
+:focus-visible { outline: 3px solid #f5a524; outline-offset: 2px; }
+select { height: 34px; padding: 0 8px; border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--panel); }
+
+/* traffic state pill: colour + word, never colour alone */
+.level { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.level::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--ink-3)); }
+.level.LOW { --c: var(--free); } .level.MEDIUM { --c: var(--slow); } .level.HIGH { --c: var(--jam); }
+
+/* map */
+.map svg { width: 100%; height: 100%; display: block; }
+.map .road { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.map .road-hit { fill: none; stroke: transparent; cursor: pointer; }
+.map .casing { fill: none; stroke: #fff; stroke-linecap: round; stroke-linejoin: round; }
+.map .route { fill: none; stroke: var(--sign); stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 0; }
+.tip {
+  position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: #fff;
+  padding: 8px 10px; border-radius: var(--radius-sm); font-size: 12.5px; line-height: 1.4; max-width: 260px;
+  box-shadow: 0 6px 18px rgba(19, 35, 46, .25); opacity: 0; transition: opacity .1s;
+}
+.tip b { font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-2); }
+.legend .sw { display: inline-block; width: 18px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

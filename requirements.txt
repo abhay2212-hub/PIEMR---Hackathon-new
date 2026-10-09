@@ -1,0 +1,7 @@
+traci
+sumolib
+matplotlib
+scikit-learn
+numpy
+# optional, only for the old Streamlit dashboards:  pip install streamlit plotly
+# camera (only for camera_yolo.py):  pip install ultralytics opencv-python lap

@@ -1,0 +1,7 @@
+<routes>
+    <vType id="car" vClass="passenger" length="4.5" maxSpeed="16.7" guiShape="passenger" color="60,130,255"/>
+    <vType id="bike" vClass="motorcycle" length="2.0" maxSpeed="16.7" guiShape="motorcycle" color="255,210,0"/>
+    <vType id="auto" vClass="passenger" length="3.2" maxSpeed="12.5" guiShape="passenger/hatchback" color="40,190,80"/>
+    <vType id="bus" vClass="bus" length="11.0" maxSpeed="13.9" guiShape="bus" color="240,120,30"/>
+    <vType id="truck" vClass="truck" length="8.0" maxSpeed="13.9" guiShape="truck" color="140,90,50"/>
+</routes>
